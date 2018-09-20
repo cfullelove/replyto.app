@@ -1,0 +1,4 @@
+cron:
+- description: "Poll"
+  url: /check_queue
+  schedule: every 1 minutes

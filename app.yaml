@@ -1,0 +1,11 @@
+runtime: go
+api_version: go1
+
+env_variables:
+  "DEBUG": "false"
+  "API_KEY": "key-ce2be1cf55db6fb2864726e35dc01d5f"
+  "API_URL": "https://api.mailgun.net/v3/sandbox02d3631d87af4e10b75b57fcd4dc9a1d.mailgun.org"
+
+handlers:
+- url: /.*
+  script: _go_app
