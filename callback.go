@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -8,18 +9,44 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"google.golang.org/appengine/datastore"
 )
 
 type Message struct {
-	Sender     string
-	Recipients []string
-	Subject    string
-	MessageID  string
-	Body       []byte
-	Request    struct {
+	Sender       string
+	Recipients   []string
+	Subject      string
+	MessageID    string
+	ReceivedTime time.Time
+	Body         []byte
+	Request      struct {
 		Headers http.Header
 		Body    []byte
+	} `datastore:"-"`
+	RequestRaw []byte
+}
+
+func (m *Message) Load(ps []datastore.Property) error {
+	if err := datastore.LoadStruct(m, ps); err != nil {
+		return err
 	}
+
+	if err := json.Unmarshal(m.RequestRaw, &(m.Request)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Message) Save() ([]datastore.Property, error) {
+	b, err := json.MarshalIndent(m.Request, "", "    ")
+	if err != nil {
+		return nil, err
+	}
+	m.RequestRaw = b
+
+	return datastore.SaveStruct(m)
 }
 
 func NewMessageFromRequest(req *http.Request) Message {

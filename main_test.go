@@ -94,7 +94,7 @@ func TestAddresses(t *testing.T) {
 	for _, c := range addresses {
 		t.Run(c.address, func(t *testing.T) {
 			t.Logf("Beginning %v, expecting %v", c.address, c.expected.Format(time.ANSIC))
-			rt, err := GetReplytime(c.address, c.current)
+			rt, err := getReplytime(c.address, c.current)
 			if err != nil {
 				t.Errorf("got and error and shouldn't have: %v", err)
 				return
