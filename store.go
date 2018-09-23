@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"google.golang.org/appengine/datastore"
@@ -74,6 +75,67 @@ func (d *store) PutReplyMessage(message ReplyMessage) (*datastore.Key, error) {
 	return key, err
 }
 
+func (d *store) GetMessage(key string) (Message, error) {
+	var storeKey *datastore.Key
+	var message Message
+
+	// The key string might be a numberID, not an encoded string...
+	if keyIntID, err := strconv.ParseInt(key, 10, 64); err == nil {
+		storeKey = datastore.NewKey(d.ctx, "message_log", "", keyIntID, nil)
+	} else {
+		storeKey, err = datastore.DecodeKey(key)
+		if err != nil {
+			return message, err
+		}
+	}
+
+	if storeKey.Kind() != "message_log" {
+		return message, fmt.Errorf("key reference incorrect kind: %v", storeKey.Kind())
+	}
+
+	err := datastore.Get(d.ctx, storeKey, &message)
+	return message, err
+
+}
+
+func (d *store) GetMessageNumberID(key int64) (Message, error) {
+	storeKey := datastore.NewKey(d.ctx, "message_log", "", key, nil)
+	return d.GetMessage(storeKey.Encode())
+}
+
+type QueryOption func(*datastore.Query) *datastore.Query
+
+func LimitTo(n int) QueryOption {
+	return func(q *datastore.Query) *datastore.Query {
+		return q.Limit(n)
+	}
+}
+
+func OrderBy(fieldName string) QueryOption {
+	return func(q *datastore.Query) *datastore.Query {
+		return q.Order(fieldName)
+	}
+}
+
+func FilterBy(filterStr string, value interface{}) QueryOption {
+	return func(q *datastore.Query) *datastore.Query {
+		return q.Filter(filterStr, value)
+	}
+}
+
+func (d *store) GetMessages(opts ...QueryOption) ([]*datastore.Key, []Message, error) {
+
+	q := datastore.NewQuery("message_log")
+	for _, opt := range opts {
+		q = opt(q)
+	}
+
+	var messages []Message
+	keys, err := q.GetAll(d.ctx, &messages)
+
+	return keys, messages, err
+}
+
 func (d *store) PutReplyMessages(messages []ReplyMessage) ([]*datastore.Key, error) {
 
 	keys := []*datastore.Key{}
@@ -93,6 +155,22 @@ func (d *store) GetReadyReplies(t time.Time) (map[*datastore.Key]ReplyMessage, e
 	replies := []ReplyMessage{}
 
 	keys, err := datastore.NewQuery("message").Filter("Schedule<=", t).GetAll(d.ctx, &replies)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get reply messages: %v", err)
+	}
+
+	repliesMap := make(map[*datastore.Key]ReplyMessage)
+	for i, r := range replies {
+		repliesMap[keys[i]] = r
+	}
+
+	return repliesMap, nil
+}
+
+func (d *store) GetPendingReplies(t time.Time) (map[*datastore.Key]ReplyMessage, error) {
+	replies := []ReplyMessage{}
+
+	keys, err := datastore.NewQuery("message").Filter("Schedule>=", t).GetAll(d.ctx, &replies)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get reply messages: %v", err)
 	}

@@ -1,15 +1,14 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"google.golang.org/appengine" // Required external App Engine library
-	"google.golang.org/appengine/datastore"
+
+	"google.golang.org/appengine"
 	aelog "google.golang.org/appengine/log"
 )
 
@@ -53,54 +52,56 @@ func main() {
 
 	r.GET("/message/:key", func(c *gin.Context) {
 		ctx := appengine.NewContext(c.Request)
+		store := NewDataStore(ctx)
 
 		key := c.Param("key")
-		log.Println(key)
 
-		var message Message
-
-		var storeKey *datastore.Key
-		if keyIntID, err := strconv.ParseInt(key, 10, 64); err == nil {
-			storeKey = datastore.NewKey(ctx, "message_log", "", keyIntID, nil)
-		} else {
-			aelog.Debugf(ctx, "unable to parse %s as IntID: %v", err)
-		}
-
-		if decKey, err := datastore.DecodeKey(key); err == nil {
-			storeKey = decKey
-		} else {
-			aelog.Debugf(ctx, "unable to decode %s as key: %v", err)
-		}
-
-		if err := datastore.Get(ctx, storeKey, &message); err != nil {
+		message, err := store.GetMessage(key)
+		if err != nil {
 			aelog.Errorf(ctx, "Error getting message log: %v", err)
 			c.AbortWithError(http.StatusInternalServerError, err)
-			return
 		}
 
 		c.IndentedJSON(http.StatusOK, message)
 	})
 
 	r.GET("/messages", func(c *gin.Context) {
-		ctx := appengine.NewContext(c.Request)
+		c.Redirect(http.StatusFound, "/messages/5")
+	})
 
-		var messages []Message
-		keys, err := datastore.NewQuery("message_log").Limit(5).GetAll(ctx, &messages)
+	r.GET("/messages/:limit", func(c *gin.Context) {
+		ctx := appengine.NewContext(c.Request)
+		store := NewDataStore(ctx)
+
+		limit, err := strconv.Atoi(c.Param("limit"))
 		if err != nil {
 			aelog.Errorf(ctx, "Error getting message log: %v", err)
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 
-		for _, key := range keys {
-			log.Println(key.StringID(), key.IntID(), key.Encode())
-			// datastore.Get(ctx, datastore.NewKey(ctx, "message_log", key.StringID()))
+		keys, messages, err := store.GetMessages(
+			LimitTo(limit),
+			OrderBy("-ReceivedTime"),
+		)
+		if err != nil {
+			aelog.Errorf(ctx, "Error getting message log: %v", err)
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		for i := range messages {
+			messages[i].Key = keys[i]
 		}
 
 		c.IndentedJSON(http.StatusOK, messages)
 	})
 
-	r.GET("/check_queue", func(c *gin.Context) {
+	r.Any("/check_queue", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/queue/ready")
+	})
+
+	r.GET("/queue/ready", func(c *gin.Context) {
 		ctx := appengine.NewContext(c.Request)
 
 		store := NewDataStore(ctx)
@@ -113,7 +114,12 @@ func main() {
 		}
 
 		for key, m := range replies {
-			log.Println(m)
+			if appengine.IsDevAppServer() {
+				aelog.Infof(ctx, "Would have sent '%v' to %s", m.Subject, m.To)
+				store.Delete(key)
+				continue
+			}
+
 			if err := SendMessage(ctx, m); err != nil {
 				aelog.Errorf(ctx, "Error sending reply: %v", err)
 				c.AbortWithError(http.StatusInternalServerError, err)
@@ -126,6 +132,27 @@ func main() {
 
 		c.String(http.StatusOK, "%v replies have been sent", len(replies))
 
+	})
+
+	r.GET("/queue/pending", func(c *gin.Context) {
+		ctx := appengine.NewContext(c.Request)
+
+		store := NewDataStore(ctx)
+
+		replies, err := store.GetPendingReplies(time.Now())
+		if err != nil {
+			aelog.Errorf(ctx, "Error getting replies: %v", err)
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		repliesMap := make(map[time.Time]ReplyMessage)
+
+		for _, m := range replies {
+			repliesMap[m.Schedule] = m
+		}
+
+		c.IndentedJSON(http.StatusOK, repliesMap)
 	})
 
 	http.HandleFunc("/", r.ServeHTTP)

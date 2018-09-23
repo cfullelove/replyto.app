@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 )
 
 type Message struct {
+	Key          *datastore.Key `datastore:"-"`
 	Sender       string
 	Recipients   []string
 	Subject      string
@@ -21,8 +23,9 @@ type Message struct {
 	ReceivedTime time.Time
 	Body         []byte
 	Request      struct {
-		Headers http.Header
-		Body    []byte
+		Headers  http.Header
+		PostForm url.Values
+		Body     []byte
 	} `datastore:"-"`
 	RequestRaw []byte
 }
@@ -58,19 +61,22 @@ func NewMessageFromRequest(req *http.Request) Message {
 	message.Subject = req.PostFormValue("subject")
 	message.MessageID = req.PostFormValue("Message-Id")
 	message.Body = []byte(req.PostFormValue("body-plain"))
+	if t, err := time.Parse(time.RFC1123Z, req.PostFormValue("Date")); err != nil {
+		log.Println(err)
+		message.ReceivedTime = time.Now()
+	} else {
+		message.ReceivedTime = t
+	}
 	message.Request.Headers = req.Header
-	// body, err := req.GetBody()
-	// if err == nil {
-	// message.Request.Body, _ = ioutil.ReadAll(body)
-	// }
-	message.Request.Body, _ = ioutil.ReadAll(req.Body)
+	message.Request.PostForm = req.PostForm
+	message.Request.Body = []byte(req.PostForm.Encode())
 
 	return message
 }
 
-func (m Message) RecievedTime() time.Time {
-	return time.Now()
-}
+// func (m Message) RecievedTime() time.Time {
+// 	return message.ReceivedTime
+// }
 
 func (m Message) newReplyMessage(to string, t time.Time) ReplyMessage {
 	return ReplyMessage{
@@ -90,15 +96,15 @@ func (m Message) GetReplyMessages() []ReplyMessage {
 	replies := []ReplyMessage{}
 
 	for _, to := range m.Recipients {
-		reply := m.newReplyMessage(to, m.RecievedTime())
+		reply := m.newReplyMessage(to, m.ReceivedTime)
 
-		timeToReply, err := getReplytime(to, m.RecievedTime())
+		timeToReply, err := getReplytime(to, m.ReceivedTime)
 		if err != nil {
 			str := "Error: there was an error determing when we should reply to your email.\n\nThe address you used was %s and it's either not supported of we had a problem (%v)"
 			reply.Body = []byte(fmt.Sprintf(str, to, err))
 		} else {
 			reply.Schedule = timeToReply
-			reply.Body = append([]byte(fmt.Sprintf("Replying to your message originally sent %v to %v\n\n\n", m.RecievedTime().Format(time.ANSIC), to)), reply.Body...)
+			reply.Body = append([]byte(fmt.Sprintf("Replying to your message originally sent %v to %v\n\n\n", m.ReceivedTime.Format(time.ANSIC), to)), reply.Body...)
 		}
 
 		replies = append(replies, reply)
