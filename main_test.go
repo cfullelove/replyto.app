@@ -18,19 +18,24 @@ func (tc addressToReplyTimeCase) Equals(actual time.Time) bool {
 func TestAddresses(t *testing.T) {
 	addresses := []addressToReplyTimeCase{
 		addressToReplyTimeCase{
-			address:  "5d@address.com",
+			address:  "tomorrow@address.com",
 			current:  time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 1, 6, 0, 0, 0, 0, time.Local),
+			expected: time.Date(2018, 1, 2, 8, 0, 0, 0, time.Local),
+		},
+		addressToReplyTimeCase{
+			address:  "5d@address.com",
+			current:  time.Date(2018, 1, 1, 17, 0, 0, 0, time.Local),
+			expected: time.Date(2018, 1, 6, 8, 0, 0, 0, time.Local),
 		},
 		addressToReplyTimeCase{
 			address:  "1day@address.com",
-			current:  time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 1, 2, 0, 0, 0, 0, time.Local),
+			current:  time.Date(2018, 1, 1, 4, 0, 0, 0, time.Local),
+			expected: time.Date(2018, 1, 2, 8, 0, 0, 0, time.Local),
 		},
 		addressToReplyTimeCase{
 			address:  "3days@address.com",
 			current:  time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 1, 4, 0, 0, 0, 0, time.Local),
+			expected: time.Date(2018, 1, 4, 8, 0, 0, 0, time.Local),
 		},
 		addressToReplyTimeCase{
 			address:  "3hrs@address.com",
@@ -49,43 +54,43 @@ func TestAddresses(t *testing.T) {
 		},
 		addressToReplyTimeCase{
 			address:  "monday@address.com",
-			current:  time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 1, 8, 0, 0, 0, 0, time.Local),
+			current:  time.Date(2018, 1, 1, 12, 23, 10, 0, time.Local),
+			expected: time.Date(2018, 1, 8, 8, 0, 0, 0, time.Local),
 		},
 		addressToReplyTimeCase{
 			address:  "monday@address.com",
-			current:  time.Date(2018, 9, 21, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 9, 24, 0, 0, 0, 0, time.Local),
+			current:  time.Date(2018, 9, 21, 4, 1, 45, 0, time.Local),
+			expected: time.Date(2018, 9, 24, 8, 0, 0, 0, time.Local),
 		},
 		addressToReplyTimeCase{
 			address:  "tuesday@address.com",
 			current:  time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 1, 2, 0, 0, 0, 0, time.Local),
+			expected: time.Date(2018, 1, 2, 8, 0, 0, 0, time.Local),
 		},
 		addressToReplyTimeCase{
 			address:  "wednesday@address.com",
 			current:  time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 1, 3, 0, 0, 0, 0, time.Local),
+			expected: time.Date(2018, 1, 3, 8, 0, 0, 0, time.Local),
 		},
 		addressToReplyTimeCase{
 			address:  "thursday@address.com",
 			current:  time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 1, 4, 0, 0, 0, 0, time.Local),
+			expected: time.Date(2018, 1, 4, 8, 0, 0, 0, time.Local),
 		},
 		addressToReplyTimeCase{
 			address:  "friday@address.com",
 			current:  time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 1, 5, 0, 0, 0, 0, time.Local),
+			expected: time.Date(2018, 1, 5, 8, 0, 0, 0, time.Local),
 		},
 		addressToReplyTimeCase{
 			address:  "saturday@address.com",
 			current:  time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 1, 6, 0, 0, 0, 0, time.Local),
+			expected: time.Date(2018, 1, 6, 8, 0, 0, 0, time.Local),
 		},
 		addressToReplyTimeCase{
 			address:  "sunday@address.com",
 			current:  time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local),
-			expected: time.Date(2018, 1, 7, 0, 0, 0, 0, time.Local),
+			expected: time.Date(2018, 1, 7, 8, 0, 0, 0, time.Local),
 		},
 	}
 

@@ -74,10 +74,6 @@ func NewMessageFromRequest(req *http.Request) Message {
 	return message
 }
 
-// func (m Message) RecievedTime() time.Time {
-// 	return message.ReceivedTime
-// }
-
 func (m Message) newReplyMessage(to string, t time.Time) ReplyMessage {
 	return ReplyMessage{
 		To:                m.Sender,
@@ -113,11 +109,18 @@ func (m Message) GetReplyMessages() []ReplyMessage {
 	return replies
 }
 
+func makeTime(t time.Time, hour, minute, second int) time.Time {
+	hOffset := -1 * time.Duration(t.Hour()-hour) * time.Hour
+	mOffset := -1 * time.Duration(t.Minute()-minute) * time.Minute
+	sOffset := -1 * time.Duration(t.Second()-second) * time.Second
+	return t.Add(hOffset + mOffset + sOffset)
+}
+
 func nextWeekday(start time.Time, weekDay time.Weekday) time.Time {
 	t := start.Add(24 * time.Hour)
 	for {
 		if t.Weekday() == weekDay {
-			return t
+			return makeTime(t, 8, 0, 0)
 		}
 		t = t.Add(24 * time.Hour)
 	}
@@ -136,12 +139,20 @@ func getReplytime(from string, t time.Time) (time.Time, error) {
 		return t, nil
 	}
 
+	if name == "tomorrow" {
+		t = t.Add(24 * time.Hour)
+		t = makeTime(t, 8, 0, 0)
+		return t, nil
+	}
+
 	if res := regexp.MustCompile("^([0-9]+)(d|day|days)$").FindAllStringSubmatch(name, -1); len(res) == 1 {
 		if len(res[0]) != 3 {
 			return time.Time{}, fmt.Errorf("something went wrong: %v size %d", res[0], len(res[0]))
 		}
 		days, err := strconv.Atoi(res[0][1])
-		return t.Add(time.Duration(days*24) * time.Hour), err
+		t = t.Add(time.Duration(days*24) * time.Hour)
+		t = makeTime(t, 8, 0, 0)
+		return t, err
 	}
 
 	if res := regexp.MustCompile("^([0-9]+)(h|hour|hours|hrs)$").FindAllStringSubmatch(name, -1); len(res) == 1 {
