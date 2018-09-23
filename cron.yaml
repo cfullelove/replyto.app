@@ -1,4 +1,4 @@
 cron:
 - description: "Poll"
-  url: /check_queue
+  url: /queue/ready
   schedule: every 1 minutes
